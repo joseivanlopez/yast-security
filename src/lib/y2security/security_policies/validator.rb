@@ -18,7 +18,6 @@
 # find current contact information at www.suse.com.
 
 require "abstract_method"
-require "y2issues/list"
 
 module Y2Security
   module SecurityPolicies
@@ -39,13 +38,12 @@ module Y2Security
       #
       # @param _scopes [Array<Symbol>] Scopes to validate (:network, :storage, :bootloader, etc.)
       #   If not scopes are given, it runs through all of them.
-      # @return [Y2Issues::List]
+      # @return [Array<Y2Issues::Issue>]
       def validate(*scopes)
         scopes = Scopes.all & scopes
         scopes = Scopes.all if scopes.none?
 
-        issues = scopes.map { |s| send("#{s}_issues") }.flatten
-        Y2Issues::List.new(issues)
+        scopes.map { |s| send("#{s}_issues") }.flatten
       end
 
       abstract_method :bootloader_issues

@@ -17,6 +17,7 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
+require "y2security/security_policies/manager"
 require "y2security/security_policies/policy"
 require "y2security/security_policies/validator"
 require "y2security/security_policies/disa_stig_validator"

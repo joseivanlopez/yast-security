@@ -39,7 +39,7 @@ module Y2Security
 
       private
 
-      def validor
+      def validator
         @validator ||= DisaStigValidator.new
       end
     end

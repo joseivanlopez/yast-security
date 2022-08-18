@@ -18,7 +18,7 @@
 # find current contact information at www.suse.com.
 #
 require "installation/proposal_client"
-require "y2security/security_policies/policy"
+require "y2security/security_policies/manager"
 
 module Y2Security
   module Clients
@@ -33,6 +33,8 @@ module Y2Security
         def issues
           @issues ||= IssuesCollection.new
         end
+
+        attr_writer :issues
       end
 
       def initialize
@@ -105,12 +107,16 @@ module Y2Security
         "#{LINK_DIALOG}--#{action}:#{id}"
       end
 
+      def policies_manager
+        Y2Security::SecurityPolicies::Manager.instance
+      end
+
       def find_policy(id)
-        Y2Security::SecurityPolicies::Policy.find(id.to_sym)
+        policies_manager.policy(id.to_sym)
       end
 
       def policies
-        Y2Security::SecurityPolicies::Policy.all
+        policies_manager.policies
       end
 
       def warning_message
@@ -146,11 +152,7 @@ module Y2Security
       end
 
       def check_security_policies
-        issues.clear
-        enabled_policies = policies.select(&:enabled?)
-        enabled_policies.each do |policy|
-          issues.update(policy, policy.validate)
-        end
+        self.class.issues = policies_manager.issues
       end
 
       # Adds or removes the packages needed by the policy to or from the Packages Proposal
