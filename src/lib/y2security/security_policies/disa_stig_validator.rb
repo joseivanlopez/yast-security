@@ -21,10 +21,11 @@ require "yast"
 require "y2security/security_policies/validator"
 require "y2security/security_policies/issue"
 require "y2security/security_policies/action"
-require "y2issues/list"
+require "y2issues/issue"
 require "y2network/connection_config/wireless"
 require "bootloader/bootloader_factory"
 require "bootloader/grub2base"
+require "y2storage/storage_manager"
 
 Yast.import "Lan"
 
@@ -34,24 +35,9 @@ module Y2Security
     class DisaStigValidator < Validator
       include Yast::I18n
 
-      KNOWN_SCOPES = [:bootloader, :firewall, :network, :storage].freeze
-      private_constant :KNOWN_SCOPES
-
       def initialize
         textdomain "security"
       end
-
-      # Returns the issues found for the given scope
-      #
-      # @return [Y2Issues::List] List of found issues
-      def validate(*scopes)
-        scopes_to_validate = scopes.empty? ? KNOWN_SCOPES : KNOWN_SCOPES & scopes
-        scopes_to_validate.reduce([]) do |all, scope|
-          all + send("#{scope}_issues")
-        end
-      end
-
-    private
 
       # Returns the issues in the network configuration
       #
@@ -63,9 +49,7 @@ module Y2Security
         return [] if conns.empty?
 
         conns.each_with_object([]) do |conn, all|
-          message = format(
-            _("Wireless connections are not allowed: %s"), conn.name
-          )
+          message = format(_("Wireless connections are not allowed: %s"), conn.name)
           action = Action.new(_(format("disable %s device", conn.name))) do
             yast_config = Yast::Lan.yast_config
             conn = yast_config.connections.by_name(conn.name)

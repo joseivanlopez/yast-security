@@ -22,28 +22,6 @@ require "y2security/security_policies/policy"
 
 module Y2Security
   module Clients
-    # Helper class to keep the list of issues
-    class IssuesCollection
-      def initialize
-        @issues = {}
-      end
-
-      def update(policy, issues)
-        @issues[policy.id] = issues
-      end
-
-      def by_policy(policy)
-        @issues[policy.id]
-      end
-
-      def all
-        @issues.values.flatten
-      end
-
-      def clear
-        @issues.clear
-      end
-    end
     # Proposal client to enable/disable security policies
     class SecurityPolicyProposal < ::Installation::ProposalClient
       include Yast::I18n

@@ -17,38 +17,44 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
-require "yast"
+require "abstract_method"
+require "y2issues/list"
 
 module Y2Security
   module SecurityPolicies
     # Base class for security policies validators
     class Validator
-      include Yast::I18n
-      include Yast::Logger
+      module Scopes
+        BOOTLOADER = :bootloader.freeze
+        FIREWALL = :firewall.freeze
+        NETWORK = :network.freeze
+        STORAGE = :storage.freeze
 
-      class << self
-        # Returns a validator for the given policy
-        #
-        # @param policy [SecurityPolicy] Security policy to build the validator for
-        def for(policy)
-          require "y2security/security_policies/#{policy.id}_validator"
-          klass_prefix = policy.id.to_s.split("_").map(&:capitalize).join
-          klass = Y2Security::SecurityPolicies.const_get("#{klass_prefix}Validator")
-          klass.new
-        rescue LoadError, NameError => e
-          log.info "Could not load a validator for #{policy}: #{e.message}"
+        def all
+          [BOOTLOADER, FIREWALL, NETWORK, STORAGE]
         end
-      end
-
-      def initialize
-        textdomain "security"
       end
 
       # Returns the issues found for the given scope
       #
-      # @param _scopes [Symbol] Scopes to validate (:network, :storage, :bootloader, etc.)
+      # @param _scopes [Array<Symbol>] Scopes to validate (:network, :storage, :bootloader, etc.)
       #   If not scopes are given, it runs through all of them.
-      def validate(*_scopes); end
+      # @return [Y2Issues::List]
+      def validate(*scopes)
+        scopes = Scopes.all & scopes
+        scopes = Scopes.all if scopes.none?
+
+        issues = scopes.map { |s| send("#{s}_issues") }.flatten
+        Y2Issues::List.new(issues)
+      end
+
+      abstract_method :bootloader_issues
+
+      abstract_method :firewall_issues
+
+      abstract_method :network_issues
+
+      abstract_method :storage_issues
     end
   end
 end
