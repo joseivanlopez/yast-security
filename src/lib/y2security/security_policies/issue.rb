@@ -25,12 +25,12 @@ module Y2Security
         @issues = {}
       end
 
-      def update(policy, issues)
-        @issues[policy.id] = issues
+      def update(policy_id, issues)
+        @issues[policy_id] = issues
       end
 
-      def by_policy(policy)
-        @issues[policy.id]
+      def by_policy(policy_id)
+        @issues[policy_id]
       end
 
       def all

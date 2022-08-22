@@ -26,11 +26,15 @@ module Y2Security
     class Manager
       include Singleton
 
+      def initialize
+        @enabled_policies = []
+      end
+
       # Returns the list of known security policies
       #
       # @return [Array<Policy>]
       def policies
-        @policies ||= [DisaStigPolicy.new]
+        @policies ||= [DisaStigPolicy.new].freeze
       end
 
       # Returns the security policy with the given ID
@@ -40,11 +44,18 @@ module Y2Security
         policies.find { |p| p.id == id }
       end
 
-      # Returns the enabled policies
-      #
-      # @return [Array<Policy>] List of enabled security policies
-      def enabled_policies
-        policies.select(&:enabled?)
+      def enable_policy(id)
+        return unless policy(id)
+
+        @enabled_policies.push(id).uniq!
+      end
+
+      def disable_policy(id)
+        @enabled_policies.delete(id)
+      end
+
+      def enabled_policy?(id)
+        @enabled_policies.include?(id)
       end
 
       # @return [IssuesCollection]
@@ -52,10 +63,19 @@ module Y2Security
         issues_collection = IssuesCollection.new
 
         enabled_policies.each do |policy|
-          issues_collection.update(policy, policy.validate(*scopes))
+          issues_collection.update(policy.id, policy.validate(*scopes))
         end
 
         issues_collection
+      end
+
+      private
+
+      # Returns the enabled policies
+      #
+      # @return [Array<Policy>] List of enabled security policies
+      def enabled_policies
+        @enabled_policies.map { |id| policy(id) }
       end
     end
   end

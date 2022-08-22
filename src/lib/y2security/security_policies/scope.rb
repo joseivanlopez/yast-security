@@ -17,6 +17,44 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
-require "y2security/security_policies/manager"
-require "y2security/security_policies/disa_stig_policy"
 require "y2security/security_policies/scope"
+
+module Y2Security
+  module SecurityPolicies
+    class Scope
+      class << self
+        def all
+          [network, storage, firewall, bootloader]
+        end
+
+        def network
+          new(:network)
+        end
+
+        def storage
+          new(:storage)
+        end
+
+        def firewall
+          new(:firewall)
+        end
+
+        def bootloader
+          new(:bootloader)
+        end
+      end
+
+      attr_reader :id
+
+      def ==(other)
+        id == other.id
+      end
+
+      private
+
+      def initialize(id)
+        @id = id
+      end
+    end
+  end
+end

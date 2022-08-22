@@ -74,10 +74,10 @@ module Y2Security
         action, id = parse_link(param["chosen_id"])
         case action
         when "disable"
-          find_policy(id).disable
+          disable_policy(id.to_sym)
           refresh_packages
         when "enable"
-          find_policy(id).enable
+          enable_policy(id.to_sym)
           refresh_packages
         when "fix"
           fix_issue(id.to_i)
@@ -111,12 +111,16 @@ module Y2Security
         Y2Security::SecurityPolicies::Manager.instance
       end
 
-      def find_policy(id)
-        policies_manager.policy(id.to_sym)
-      end
-
       def policies
         policies_manager.policies
+      end
+
+      def enable_policy(id)
+        policies_manager.enable_policy(id)
+      end
+
+      def disable_policy(id)
+        policies_manager.disable_policy(id)
       end
 
       def warning_message
@@ -126,7 +130,7 @@ module Y2Security
       end
 
       def policy_link(policy)
-        if policy.enabled?
+        if policies_manager.enabled_policy?(policy.id)
           format(
             # TRANSLATORS: 'policy' is a security policy name; 'link' is just an HTML-like link
             _("%{policy} is enabled (<a href=\"%{link}\">disable</a>)"),
@@ -158,7 +162,8 @@ module Y2Security
       # Adds or removes the packages needed by the policy to or from the Packages Proposal
       def refresh_packages
         policies.each do |policy|
-          method = policy.enabled? ? "AddResolvables" : "RemoveResolvables"
+          enabled = policies_manager.enabled_policy?(policy.id)
+          method = enabled ? "AddResolvables" : "RemoveResolvables"
 
           Yast::PackagesProposal.public_send(method, "security", :package, policy.packages)
         end
@@ -186,7 +191,7 @@ module Y2Security
       end
 
       def policy_issues(policy)
-        issues.by_policy(policy)
+        issues.by_policy(policy.id)
       end
 
       def issues

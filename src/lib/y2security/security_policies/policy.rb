@@ -17,7 +17,7 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
-require "abstract_method"
+require "y2security/security_policies/scope"
 
 module Y2Security
   module SecurityPolicies
@@ -33,49 +33,33 @@ module Y2Security
     #   policy = Policy.find(:disa_stig)
     #   policy.validate.map(&:to_message) #=> ["Wireless devices are not allowed"]
     class Policy
-      def initialize
-        @enabled = false
-      end
-
-      # Enables the policy
-      def enable
-        @enabled = true
-      end
-
-      # Disables the policy
-      def disable
-        @enabled = false
-      end
-
-      # Determines whether the policy is enabled or not
-      #
-      # @return [Boolean] true if it is enabled; false otherwise
-      def enabled?
-        @enabled
-      end
-
-      # Validates whether the current configuration matches the policy
-      #
-      # @return [Array<Issue>] List of validation issues
-      def validate
-        validator.validate
-      end
-
       # @return [Symbol] Security policy ID
-      abstract_method :id
+      def id; end
 
       # @return [String] Security policy name
-      abstract_method :name
+      def name; end
 
       # @return [Array<String>] Security policy packages needed
-      abstract_method :packages
+      def packages
+        []
+      end
 
-    private
-
-      # Returns the associated validator
+      # Returns the issues found for the given scope
       #
-      # @return [Validator]
-      abstract_method :validator
+      # @param scopes [Array<Scope>] Scopes to validate (:network, :storage, :bootloader, etc.)
+      #   If not scopes are given, it runs through all of them.
+      # @return [Array<Y2Issues::Issue>]
+      def validate(*scopes)
+        scopes = Scope.all if scopes.none?
+
+        scopes.map { |s| issues_for(s) }.flatten
+      end
+
+      private
+
+      def issues_for(scope)
+        []
+      end
     end
   end
 end
