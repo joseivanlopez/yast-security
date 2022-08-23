@@ -17,6 +17,29 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
-require "y2security/security_policies/manager"
-require "y2security/security_policies/scopes"
-require "y2security/security_policies/disa_stig_policy"
+module Y2Security
+  module SecurityPolicies
+    module Scopes
+      class Firewall
+        attr_reader :security_settings
+
+        def initialize(security_settings: nil)
+          @security_settings = security_settings || default_security_settings
+        end
+
+        private
+
+        # Convenience method to obtain an Installation::SecuritySettings instance
+        #
+        # @return [Installation::SecuritySettings, nil]
+        def default_security_settings
+          # FIXME: avoid a cyclic dependency with yast2-installation
+          require "installation/security_settings"
+          ::Installation::SecuritySettings.instance
+        rescue LoadError
+          nil
+        end
+      end
+    end
+  end
+end

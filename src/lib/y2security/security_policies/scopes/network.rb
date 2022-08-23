@@ -17,6 +17,26 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
-require "y2security/security_policies/manager"
-require "y2security/security_policies/scopes"
-require "y2security/security_policies/disa_stig_policy"
+require "yast"
+
+Yast.import "Lan"
+
+module Y2Security
+  module SecurityPolicies
+    module Scopes
+      class Network
+        attr_reader :config
+
+        def initialize(config: nil)
+          @config = config || default_config
+        end
+
+        private
+
+        def default_config
+          Yast::Lan.yast_config
+        end
+      end
+    end
+  end
+end

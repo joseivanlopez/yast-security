@@ -18,32 +18,10 @@
 # find current contact information at www.suse.com.
 #
 require "installation/proposal_client"
-require "y2security/security_policies/policy"
+require "y2security/security_policies/manager"
 
 module Y2Security
   module Clients
-    # Helper class to keep the list of issues
-    class IssuesCollection
-      def initialize
-        @issues = {}
-      end
-
-      def update(policy, issues)
-        @issues[policy.id] = issues
-      end
-
-      def by_policy(policy)
-        @issues[policy.id]
-      end
-
-      def all
-        @issues.values.flatten
-      end
-
-      def clear
-        @issues.clear
-      end
-    end
     # Proposal client to enable/disable security policies
     class SecurityPolicyProposal < ::Installation::ProposalClient
       include Yast::I18n
@@ -55,6 +33,8 @@ module Y2Security
         def issues
           @issues ||= IssuesCollection.new
         end
+
+        attr_writer :issues
       end
 
       def initialize
@@ -94,10 +74,10 @@ module Y2Security
         action, id = parse_link(param["chosen_id"])
         case action
         when "disable"
-          find_policy(id).disable
+          disable_policy(id.to_sym)
           refresh_packages
         when "enable"
-          find_policy(id).enable
+          enable_policy(id.to_sym)
           refresh_packages
         when "fix"
           fix_issue(id.to_i)
@@ -127,22 +107,30 @@ module Y2Security
         "#{LINK_DIALOG}--#{action}:#{id}"
       end
 
-      def find_policy(id)
-        Y2Security::SecurityPolicies::Policy.find(id.to_sym)
+      def policies_manager
+        Y2Security::SecurityPolicies::Manager.instance
       end
 
       def policies
-        Y2Security::SecurityPolicies::Policy.all
+        policies_manager.policies
+      end
+
+      def enable_policy(id)
+        policies_manager.enable_policy(id)
+      end
+
+      def disable_policy(id)
+        policies_manager.disable_policy(id)
       end
 
       def warning_message
-        return nil if policies.none?(&:enabled?) || all_issues.empty?
+        return nil if policies_manager.enabled_policies.none? || all_issues.empty?
 
         _("The system does not comply with the security policy.")
       end
 
       def policy_link(policy)
-        if policy.enabled?
+        if policies_manager.enabled_policy?(policy.id)
           format(
             # TRANSLATORS: 'policy' is a security policy name; 'link' is just an HTML-like link
             _("%{policy} is enabled (<a href=\"%{link}\">disable</a>)"),
@@ -168,17 +156,14 @@ module Y2Security
       end
 
       def check_security_policies
-        issues.clear
-        enabled_policies = policies.select(&:enabled?)
-        enabled_policies.each do |policy|
-          issues.update(policy, policy.validate)
-        end
+        self.class.issues = policies_manager.issues
       end
 
       # Adds or removes the packages needed by the policy to or from the Packages Proposal
       def refresh_packages
         policies.each do |policy|
-          method = policy.enabled? ? "AddResolvables" : "RemoveResolvables"
+          enabled = policies_manager.enabled_policy?(policy.id)
+          method = enabled ? "AddResolvables" : "RemoveResolvables"
 
           Yast::PackagesProposal.public_send(method, "security", :package, policy.packages)
         end
@@ -206,7 +191,7 @@ module Y2Security
       end
 
       def policy_issues(policy)
-        issues.by_policy(policy)
+        issues.by_policy(policy.id)
       end
 
       def issues

@@ -17,6 +17,24 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
-require "y2security/security_policies/manager"
-require "y2security/security_policies/scopes"
-require "y2security/security_policies/disa_stig_policy"
+require "bootloader/bootloader_factory"
+
+module Y2Security
+  module SecurityPolicies
+    module Scopes
+      class Bootloader
+        attr_reader :bootloader
+
+        def initialize(bootloader: nil)
+          @bootloader = bootloader || default_bootloader
+        end
+
+        private
+
+        def default_bootloader
+          ::Bootloader::BootloaderFactory.current
+        end
+      end
+    end
+  end
+end

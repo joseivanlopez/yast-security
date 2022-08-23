@@ -17,6 +17,24 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
-require "y2security/security_policies/manager"
-require "y2security/security_policies/scopes"
-require "y2security/security_policies/disa_stig_policy"
+require "y2storage/storage_manager"
+
+module Y2Security
+  module SecurityPolicies
+    module Scopes
+      class Storage
+        attr_reader :devicegraph
+
+        def initialize(devicegraph: nil)
+          @devicegraph = devicegraph || default_devicegraph
+        end
+
+        private
+
+        def default_devicegraph
+          Y2Storage::StorageManager.instance.staging
+        end
+      end
+    end
+  end
+end

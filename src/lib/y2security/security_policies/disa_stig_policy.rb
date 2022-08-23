@@ -17,60 +17,69 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
-require "yast"
-require "y2security/security_policies/validator"
-require "y2security/security_policies/issue"
-require "y2security/security_policies/action"
-require "y2issues/list"
-require "y2network/connection_config/wireless"
-require "bootloader/bootloader_factory"
-require "bootloader/grub2base"
 
-Yast.import "Lan"
+require "yast"
+require "y2security/security_policies/policy"
+require "y2security/security_policies/action"
+require "y2security/security_policies/scopes"
+require "y2issues/issue"
+require "y2network/startmode"
+require "y2network/connection_config/wireless"
+require "bootloader/grub2base"
 
 module Y2Security
   module SecurityPolicies
-    # Validator for the STIG security policy
-    class DisaStigValidator < Validator
+    class DisaStigPolicy < Policy
       include Yast::I18n
-
-      KNOWN_SCOPES = [:bootloader, :firewall, :network, :storage].freeze
-      private_constant :KNOWN_SCOPES
 
       def initialize
         textdomain "security"
       end
 
-      # Returns the issues found for the given scope
-      #
-      # @return [Y2Issues::List] List of found issues
-      def validate(*scopes)
-        scopes_to_validate = scopes.empty? ? KNOWN_SCOPES : KNOWN_SCOPES & scopes
-        scopes_to_validate.reduce([]) do |all, scope|
-          all + send("#{scope}_issues")
-        end
+      def id
+        :disa_stig
       end
 
-    private
+      def name
+        "Defense Information Systems Agency STIG"
+      end
+
+      def packages
+        ["scap-security-guide"]
+      end
+
+      private
+
+      def issues_for(scope)
+        case scope
+        when Scopes::Network
+          network_issues(scope.config)
+        when Scopes::Storage
+          storage_issues(scope.devicegraph)
+        when Scopes::Firewall
+          firewall_issues(scope.security_settings)
+        when Scopes::Bootloader
+          bootloader_issues(scope.bootloader)
+        else
+          []
+        end
+      end
 
       # Returns the issues in the network configuration
       #
       # * Wireless devices are not supported
       #
       # @return [Array<Y2Issues::Issue>]
-      def network_issues
-        conns = find_wireless_connections
+      def network_issues(config)
+        conns = find_wireless_connections(config)
         return [] if conns.empty?
 
         conns.each_with_object([]) do |conn, all|
-          message = format(
-            _("Wireless connections are not allowed: %s"), conn.name
-          )
+          message = format(_("Wireless connections are not allowed: %s"), conn.name)
           action = Action.new(_(format("disable %s device", conn.name))) do
-            yast_config = Yast::Lan.yast_config
-            conn = yast_config.connections.by_name(conn.name)
+            conn = config.connections.by_name(conn.name)
             conn.startmode = Y2Network::Startmode.create("off")
-            yast_config.add_or_update_connection_config(conn)
+            config.add_or_update_connection_config(conn)
           end
           all << Issue.new(message, action)
         end
@@ -79,10 +88,10 @@ module Y2Security
       # Returns wireless connections which are not disabled
       #
       # @return [Array<Y2Network::ConnectionConfig::Wireless]
-      def find_wireless_connections
-        return [] if Yast::Lan.yast_config.nil?
+      def find_wireless_connections(config)
+        return [] if config.nil?
 
-        Yast::Lan.yast_config.connections.select do |conn|
+        config.connections.select do |conn|
           conn.is_a?(Y2Network::ConnectionConfig::Wireless) &&
             conn.startmode&.name != "off"
         end
@@ -97,9 +106,8 @@ module Y2Security
       # * Full disk encryption is required
       #
       # @return [Array<Y2Issues::Issue>]
-      def storage_issues
-        staging = Y2Storage::StorageManager.instance.staging
-        plain_filesystems = staging.filesystems.select do |fs|
+      def storage_issues(devicegraph)
+        plain_filesystems = devicegraph.filesystems.select do |fs|
           mp = fs.mount_point
           next if mp.nil? || PLAIN_MOUNT_POINTS.include?(mp.path)
 
@@ -136,8 +144,8 @@ module Y2Security
       # * Firewall must be enabled
       #
       # @return [Array<Y2Issues::Issue>]
-      def firewall_issues
-        return [] if !!security_settings.enable_firewall
+      def firewall_issues(security_settings)
+        return [] if !!security_settings&.enable_firewall
 
         [
           Issue.new(
@@ -149,26 +157,13 @@ module Y2Security
         ]
       end
 
-      # Convenience method to obtain an Installation::SecuritySettings instance
-      #
-      # @return [Installation::SecuritySettings]
-      def security_settings
-        # FIXME: avoid a singular dependency with yast2-installation
-        require "installation/security_settings"
-        ::Installation::SecuritySettings.instance
-      end
-
-      def bootloader
-        ::Bootloader::BootloaderFactory.current
-      end
-
       # Returns the issues in the bootloader proposal
       #
       # * Bootloader password must be set
       # * Bootloader menu editing must be set as restricted
       #
       # @return [Array<Y2Issues::Issue>]
-      def bootloader_issues
+      def bootloader_issues(bootloader)
         issues = []
         # When there is no Bootloader selected then the user will be in charge of configuring it
         # himself therefore we will not add any issue there. (e.g. Bootloader::NoneBootloader)
