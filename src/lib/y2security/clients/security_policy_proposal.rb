@@ -124,7 +124,7 @@ module Y2Security
       end
 
       def warning_message
-        return nil if policies.none?(&:enabled?) || all_issues.empty?
+        return nil if policies_manager.enabled_policies.none? || all_issues.empty?
 
         _("The system does not comply with the security policy.")
       end

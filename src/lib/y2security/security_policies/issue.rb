@@ -36,6 +36,10 @@ module Y2Security
       def all
         @issues.values.flatten
       end
+
+      def to_h
+        @issues.dup
+      end
     end
 
     # Represents an issue related to a security policy

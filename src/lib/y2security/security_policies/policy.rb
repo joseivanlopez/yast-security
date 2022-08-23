@@ -17,7 +17,7 @@
 # To contact SUSE LLC about this file by physical or electronic mail, you may
 # find current contact information at www.suse.com.
 
-require "y2security/security_policies/scope"
+require "y2security/security_policies/scopes"
 
 module Y2Security
   module SecurityPolicies
@@ -49,13 +49,22 @@ module Y2Security
       # @param scopes [Array<Scope>] Scopes to validate (:network, :storage, :bootloader, etc.)
       #   If not scopes are given, it runs through all of them.
       # @return [Array<Y2Issues::Issue>]
-      def validate(*scopes)
-        scopes = Scope.all if scopes.none?
+      def validate(scope = nil)
+        scopes = scope ? [scope] : default_scopes
 
         scopes.map { |s| issues_for(s) }.flatten
       end
 
       private
+
+      def default_scopes
+        [
+          Scopes::Storage.new,
+          Scopes::Bootloader.new,
+          Scopes::Network.new,
+          Scopes::Firewall.new
+        ]
+      end
 
       def issues_for(scope)
         []

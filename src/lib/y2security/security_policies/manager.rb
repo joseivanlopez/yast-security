@@ -19,7 +19,7 @@
 
 require "singleton"
 require "y2security/security_policies/disa_stig_policy"
-require "y2security/security_policies/issues"
+require "y2security/security_policies/issue"
 
 module Y2Security
   module SecurityPolicies
@@ -28,6 +28,8 @@ module Y2Security
 
       def initialize
         @enabled_policies = []
+
+        enable_policies
       end
 
       # Returns the list of known security policies
@@ -58,12 +60,19 @@ module Y2Security
         @enabled_policies.include?(id)
       end
 
+      # Returns the enabled policies
+      #
+      # @return [Array<Policy>] List of enabled security policies
+      def enabled_policies
+        @enabled_policies.map { |id| policy(id) }
+      end
+
       # @return [IssuesCollection]
-      def issues(*scopes)
+      def issues(scope = nil)
         issues_collection = IssuesCollection.new
 
         enabled_policies.each do |policy|
-          issues_collection.update(policy.id, policy.validate(*scopes))
+          issues_collection.update(policy.id, policy.validate(scope))
         end
 
         issues_collection
@@ -71,11 +80,30 @@ module Y2Security
 
       private
 
-      # Returns the enabled policies
-      #
-      # @return [Array<Policy>] List of enabled security policies
-      def enabled_policies
-        @enabled_policies.map { |id| policy(id) }
+      ENV_SECURITY_POLICIES = "YAST_SECURITY_POLICIES".freeze
+      private_constant :ENV_SECURITY_POLICIES
+
+      def enable_policies
+        ids = policies_id_from_env
+        ids.each { |id| enable_policy(id) }
+      end
+
+      def policies_id_from_env
+        env_policies.map { |v| policy_id_from_env(v) }.compact.uniq
+      end
+
+      def policy_id_from_env(value)
+        return DisaStigPolicy.new.id if value.match?(/\Adisa_stig\z/i)
+      end
+
+      def env_policies
+        # Sort the keys to have a deterministic behavior and to prefer
+        # all-uppercase over the other variants, then do a case insensitive
+        # search
+        key = ENV.keys.sort.find { |k| k.match(/\A#{ENV_SECURITY_POLICIES}\z/i) }
+        return [] unless key
+
+        ENV[key].split(",")
       end
     end
   end
