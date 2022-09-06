@@ -88,20 +88,22 @@ module Y2Security
         @enabled_policies.include?(policy)
       end
 
-      # Issues from all enabled policies
-      #
-      # The issues can be limited to a specific scope.
-      #
-      # @param scope [Scopes::Storage, Scopes::Bootloader, Scopes::Network, Scopes::Firewall]
-      # @return [IssuesCollection]
-      def issues(scope = nil)
-        issues_collection = IssuesCollection.new
-
-        enabled_policies.each do |policy|
-          issues_collection.update(policy, policy.validate(scope))
+      def failing_rules
+        enabled_policies.each_with_object({}) do |policy, result|
+          result[policy] = policy.failing_rules
         end
+      end
 
-        issues_collection
+      def failing_storage_rules(devicegraph = nil)
+        enabled_policies.each_with_object({}) do |policy, result|
+          result[policy] = policy.failing_storage_rules(devicegraph)
+        end
+      end
+
+      def failing_network_rules(config = nil)
+        enabled_policies.each_with_object({}) do |policy, result|
+          result[policy] = policy.failing_network_rules(config)
+        end
       end
 
     private

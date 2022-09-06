@@ -65,37 +65,24 @@ module Y2Security
         id == value.to_sym
       end
 
-      # Checks the rules of the policy and returns the issues found for the given scope (or for all
-      # scopes if none is given)
-      #
-      # @note Only rules that need to be applied during installation are checked. The rest of rules
-      #   are expected to be checked and fixed by other tools after the installation.
-      #
-      # @param scope [Scopes::Storage, Scopes::Bootloader, Scopes::Network, Scopes::Firewall, nil]
-      # @return [Array<Issue>]
-      def validate(scope = nil)
-        scopes = scope ? [scope] : default_scopes
-
-        scopes.map { |s| issues_for(s) }.flatten
-      end
-
-    private
-
-      def default_scopes
-        [
-          Scopes::Storage.new,
-          Scopes::Bootloader.new,
-          Scopes::Network.new,
-          Scopes::Firewall.new
-        ]
-      end
-
-      # Issues for a specific scope
-      #
-      # @param _scope [Scopes::Storage, Scopes::Bootloader, Scopes::Network, Scopes::Firewall, nil]
-      # @return [Array<Issue>]
-      def issues_for(_scope)
+      def rules
         []
+      end
+
+      def failing_rules
+        rules.reject(&:validate)
+      end
+
+      def failing_storage_rules(devicegraph = nil)
+        storage_rules = rules.select { |r| r.is_a?(StorageRule) }
+
+        storage_rules.reject { |r| r.validate(devicegraph) }
+      end
+
+      def failing_network_rules(config = nil)
+        network_rules = rules.select { |r| r.is_a?(NetworkRule) }
+
+        network_rules.reject { |r| r.validate(config) }
       end
     end
   end
